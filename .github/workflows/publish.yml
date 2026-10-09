@@ -1,0 +1,35 @@
+name: publish
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - SOURCE_URL.txt
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download master
+        run: |
+          set -euo pipefail
+          url=$(tr -d '[:space:]' < SOURCE_URL.txt)
+          curl -fL --retry 8 --retry-all-errors --retry-delay 3 -o cabina-bosque-4k.mp4 "$url"
+          python3 - << 'PY'
+          import os
+          p = "cabina-bosque-4k.mp4"
+          n = os.path.getsize(p)
+          head = open(p, "rb").read(12)
+          assert n > 50_000_000, n
+          assert head[4:8] == b"ftyp", head
+          print("ok", n)
+          PY
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v1.0 cabina-bosque-4k.mp4 \
+            --title "Cabaña en el bosque · 4K · 1 minuto" \
+            --notes "Máster de un minuto en 4K. Cuatro planos: el bosque, la sala, el fuego y la ventana. 3840×2160, 24 fps, H.264, AAC. Sin gente y sin música. El loop de doce horas va después."
